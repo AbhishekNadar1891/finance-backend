@@ -60,3 +60,23 @@ def get_records(
         query = query.filter(Record.date <= end_date)
 
     return query.all()
+
+@router.delete("/{record_id}")
+def delete_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    record = db.query(Record).filter(Record.id == record_id).first()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    # ensure user owns the record
+    if record.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    db.delete(record)
+    db.commit()
+
+    return {"message": "Record deleted successfully"}
