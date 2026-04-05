@@ -42,7 +42,9 @@ def get_records(
     type: str = Query(None),
     category: str = Query(None),
     start_date: date = Query(None),
-    end_date: date = Query(None)
+    end_date: date = Query(None),
+    limit: int = Query(10, le=100),
+    offset: int = Query(0, ge=0),
 ):
     
     query = db.query(Record).filter(Record.user_id == current_user.id)
@@ -59,7 +61,7 @@ def get_records(
     if end_date:
         query = query.filter(Record.date <= end_date)
 
-    return query.all()
+    return query.offset(offset).limit(limit).all()
 
 @router.delete("/{record_id}")
 def delete_record(
