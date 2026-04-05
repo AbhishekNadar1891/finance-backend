@@ -8,8 +8,6 @@ from app.routes.records import router as record_router
 
 app = FastAPI()
 
-Base.metadata.create_all(bind=engine)
-
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(record_router)

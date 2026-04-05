@@ -10,6 +10,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: str
+    is_active: bool
 
     class Config:
         orm_mode = True

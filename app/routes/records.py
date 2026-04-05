@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import date
@@ -67,14 +67,13 @@ def delete_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    record = db.query(Record).filter(Record.id == record_id).first()
+    record = db.query(Record).filter(
+        Record.id == record_id,
+        Record.user_id == current_user.id
+    ).first()
 
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
-
-    # ensure user owns the record
-    if record.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
 
     db.delete(record)
     db.commit()
