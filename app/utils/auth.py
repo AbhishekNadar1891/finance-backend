@@ -1,6 +1,8 @@
 import os
 from datetime import datetime, timedelta, timezone
+from typing import List
 
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -10,11 +12,17 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback_secret")
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def _normalize_bcrypt_password(password: str) -> str:
@@ -37,9 +45,6 @@ def create_access_token(data: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def get_current_user(
@@ -74,3 +79,16 @@ def get_current_user(
         )
 
     return user
+
+
+def require_role(allowed_roles: List[str]):
+    def role_checker(current_user: User = Depends(get_current_user)):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
+
+        return current_user
+
+    return role_checker
