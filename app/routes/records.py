@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import date
@@ -62,6 +63,53 @@ def get_records(
         query = query.filter(Record.date <= end_date)
 
     return query.offset(offset).limit(limit).all()
+
+
+@router.get("/summary")
+def get_records_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    totals = (
+        db.query(
+            Record.type,
+            func.sum(Record.amount).label("total")
+        )
+        .filter(Record.user_id == current_user.id)
+        .group_by(Record.type)
+        .all()
+    )
+
+    total_income = 0.0
+    total_expense = 0.0
+
+    for record_type, total in totals:
+        if record_type == "income":
+            total_income = float(total or 0)
+        elif record_type == "expense":
+            total_expense = float(total or 0)
+
+    category_totals = (
+        db.query(
+            Record.category,
+            func.sum(Record.amount).label("total")
+        )
+        .filter(Record.user_id == current_user.id)
+        .group_by(Record.category)
+        .all()
+    )
+
+    by_category = {
+        category: float(total or 0)
+        for category, total in category_totals
+    }
+
+    return {
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "balance": total_income - total_expense,
+        "by_category": by_category
+    }
 
 @router.delete("/{record_id}")
 def delete_record(
